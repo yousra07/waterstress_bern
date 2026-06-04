@@ -1,0 +1,189 @@
+---
+title: "Analysis_TWD"
+output: html_document
+---
+```{R}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(stringr)
+```
+
+Read in the TWD data
+```{R}
+raw_TWD_data <- read_csv("../data/bern_data/TWD/tn_timeseries_L2_2025-01-01_2026-03-18_6b3befc5-6a20-4e8c-ba2b-11dbd0950788.csv")
+```
+
+Read in the metadata
+```{R}
+metadata_TWD <- read_csv("../data/bern_data/TWD/tn_metadata_L2_2025-01-01_2026-03-18_6b3befc5-6a20-4e8c-ba2b-11dbd0950788.csv")
+```
+
+Aggregate to daily data
+```{R}
+df_daily_TWD <- raw_TWD_data |> 
+  mutate(date = as_date(ts)) |>
+  group_by(date, series_id) |>
+  summarise(
+    
+    TWD_mean = mean(twd, na.rm = TRUE),
+    TWD_median = median(twd, na.rm = TRUE),
+    TWD_min = min(twd, na.rm = TRUE),
+    TWD_max = max(twd, na.rm = TRUE),
+    n_obs = n(),
+    .groups = "drop"
+  )
+
+```
+
+Filter daily data to time period Apr.-Oct. 2025
+```{R}
+df_daily_TWD <- df_daily_TWD|>
+  filter(month(date) >= 4, month(date) <= 10 ) |> # data for Apr.-Oct.2025
+  left_join(metadata_TWD, by = "series_id")
+  
+```
+
+## Plot TWD per tree
+**Plot of mean TWD:**
+```{R}
+df_daily_TWD <- df_daily_TWD |>
+  mutate(series_label = paste0(tree_name)) |>
+  filter(month(date) >= 4, month(date) <= 10 ) # data for Apr.-Oct.2025
+
+p <- ggplot(df_daily_TWD, aes(x = date, y = TWD_mean))+
+  geom_line()+
+  facet_wrap(~ series_label, scales = "free_y", ncol = 5)+
+    scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  )+
+  labs(
+    x = "Date",
+    y = "Mean TWD [µm]"
+  )
+  
+print(p)
+
+ggsave(
+  filename = "../figures/TWD_mean_plot.png",
+  plot = p,
+  width = 20,
+  height = 12,
+  dpi = 400
+)
+
+q <- ggplot(df_daily_TWD, aes(x = date, y = TWD_median))+
+  geom_line()+
+  facet_wrap(~ series_label, scales = "free_y", ncol = 5)+
+    scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  )+
+  labs(
+    x = "Date",
+    y = "Median TWD [µm]"
+  )
+print(q)
+
+ggsave(
+  filename = "../figures/TWD_median_plot.png",
+  plot = q,
+  width = 20,
+  height = 12,
+  dpi = 400
+)
+```
+
+## Plot mean TWD per tree species
+Calculate mean TWD per tree species
+```{R}
+df_daily_TWD_species <- raw_TWD_data |>
+  left_join(metadata_TWD, by = "series_id")
+
+df_daily_TWD_species <- df_daily_TWD_species |> 
+  mutate(date = as_date(ts)) |>
+  filter(month(date) >= 4, month(date) <= 10 ) |> # data for Apr.-Oct.2025
+  group_by(date, tree_genus_species) |>
+  summarise(
+    TWD_mean = mean(twd, na.rm = TRUE),
+    TWD_median = median(twd, na.rm = TRUE),
+    TWD_min = min(twd, na.rm = TRUE),
+    TWD_max = max(twd, na.rm = TRUE),
+    n_obs = n(),
+    .groups = "drop"
+  )
+```
+
+**Plot of mean TWD:**
+```{R}
+p <- ggplot(df_daily_TWD_species, aes(x = date, y = TWD_mean))+
+  geom_line()+
+  facet_wrap(~ tree_genus_species, scales = "free_y", ncol = 5)+
+    scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  )+
+  labs(
+    x = "Date",
+    y = "Mean TWD [µm]"
+  )
+print(p)
+
+ggsave(
+  filename = "../figures/TWD_mean_species_plot.png",
+  plot = p,
+  width = 20,
+  height = 12,
+  dpi = 400
+)
+```
+
+## Plot mean TWD per site and species combination
+Calculate mean TWD per site and species
+```{R}
+daily_TWD_site <- raw_TWD_data |>
+  mutate(date = as_date(ts)) |>
+  filter(month(date) >= 4, month(date) <= 10 ) |> # data for Apr.-Oct.2025
+  left_join(metadata_TWD, by = "series_id")|>
+  mutate(site = str_sub(tree_name, -2, -1)) |>
+  group_by(date, site, tree_genus_species) |>
+  summarise(
+    
+    TWD_mean = mean(twd, na.rm = TRUE),
+    TWD_median = median(twd, na.rm = TRUE),
+    TWD_min = min(twd, na.rm = TRUE),
+    TWD_max = max(twd, na.rm = TRUE),
+    n_obs = n(),
+    .groups = "drop"
+  )
+  
+```
+
+**Plot per site and species:**
+```{R}
+p <- ggplot(daily_TWD_site, aes(x = date, y = TWD_mean))+
+  geom_line()+
+  facet_wrap(vars(tree_genus_species, site), scales = "free_y", ncol = 5)+
+    scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  )+
+  labs(
+    x = "Date",
+    y = "Mean TWD [µm]"
+  )
+print(p)
+
+ggsave(
+  filename = "../figures/TWD_mean_species_site_plot.png",
+  plot = p,
+  width = 20,
+  height = 12,
+  dpi = 400
+)
+```
+
+
+

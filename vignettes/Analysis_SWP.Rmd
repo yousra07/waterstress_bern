@@ -1,0 +1,154 @@
+---
+title: "Analysis_SWP_drakau"
+output: html_document
+---
+```{R}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
+
+
+Read in SWP data from the Drakau site
+```{R}
+metadata_drakau <- read_csv("../data/bern_data/drakau_SWP/tn_metadata_L1_2025-01-01_2026-03-23_627628a5-8dc9-4c89-80ae-3e9c01b219df.csv")
+SWPdata_drakau <- read_csv("../data/bern_data/drakau_SWP/tn_timeseries_L1_2025-01-01_2026-03-23_627628a5-8dc9-4c89-80ae-3e9c01b219df.csv")
+
+# join data sets
+df_drakau <- SWPdata_drakau |>
+  left_join(metadata_drakau, by = "series_id")
+```
+
+Read in SWP data from the Thormebodewald site
+```{R}
+metadata_thormebodewald <- read_csv("../data/bern_data/thormebodewald_SWP/tn_metadata_L1_2025-01-01_2026-03-23_6b4f7a96-80f0-4517-862f-a11f9bc38f3a.csv")
+SWPdata_thormebodewald <- read_csv("../data/bern_data/thormebodewald_SWP/tn_timeseries_L1_2025-01-01_2026-03-23_6b4f7a96-80f0-4517-862f-a11f9bc38f3a.csv")
+
+# join data sets
+df_thormebodewald <- SWPdata_thormebodewald |>
+  left_join(metadata_thormebodewald, by = "series_id")
+```
+
+Aggregate to daily data
+```{R}
+df_drakau_daily <- df_drakau |>
+  mutate(date = as_date(ts)) |>
+  group_by(date, series_id) |>
+  summarise(
+    SWP_mean = mean(value, na.rm = TRUE),
+    SWP_median = median(value, na.rm = TRUE),
+    SWP_min = min(value, na.rm = TRUE),
+    SWP_max = max(value, na.rm = TRUE),
+    n_obs = n(),
+    .groups = "drop"
+  )
+
+df_thormebodewald_daily <- df_thormebodewald |>
+  mutate(date = as_date(ts)) |>
+  group_by(date, series_id) |>
+  summarise(
+    SWP_mean = mean(value, na.rm = TRUE),
+    SWP_median = median(value, na.rm = TRUE),
+    SWP_min = min(value, na.rm = TRUE),
+    SWP_max = max(value, na.rm = TRUE),
+    n_obs = n(),
+    .groups = "drop"
+  )
+
+```
+
+Filter daily data to months Apr.-Oct.
+```{R}
+df_drakau_daily <- df_drakau_daily |> 
+  filter(month(date) >= 4, month(date) <= 10 ) |> # data for Apr.-Oct.2025
+  left_join(metadata_drakau, by = "series_id")
+
+df_thormebodewald_daily <- df_thormebodewald_daily |> 
+  filter(month(date) >= 4, month(date) <= 10) |> # data for Apr.-Oct.2025
+  left_join(metadata_thormebodewald, by = "series_id")
+```
+
+## Plot SWP per site in Drakau
+**Plot of mean SWP**
+```{R}
+df_drakau_daily <- df_drakau_daily |>
+  mutate(series_label = paste0(tree_name, " | ", series_height, "m"))
+ggplot(df_drakau_daily, aes(x = date, y = SWP_mean))+
+  geom_line()+
+  facet_wrap(~ sensor_id, scales = "free_y", ncol = 3)+
+    scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  )
+
+ggplot(df_drakau_daily, aes(x = date, y = SWP_mean))+
+  geom_line()+
+  facet_wrap(~ series_label, scales = "free_y", ncol = 3)+
+    scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  )
+```
+
+Note: Recordings of SWP at P1 for -0.4m and -1.0m stopped at the end of May. 
+
+Except for the -0.1m level at P1 all measurements show the strongest decline in the middle of August followed by a recovery during the start of autumn. 
+
+At sites P2 and P3, soil water potential shows a stronger decrease in the upper soil layers compared to deeper layers, indicating more pronounced drying near the surface.
+
+Comparing the measurements at -0.1 m across all three sites, the magnitude of the decrease in mean soil water potential appears to increase from P1 to P3. This suggests a potential gradient along the hillslope, with drier conditions at sites located further upslope and further away from the Aare river.
+
+A similar pattern can be observed for measurements at -0.4 m when comparing P2 and P3.
+
+The measurements along the gradient G1 do not show the same pattern. Here the mean soil water potential decreased the most for the -0.1m level, but the -0.4m level showed significantly less decrease then the -1.0m level.
+For all the depth levels of the gradient the measurements are done on the same altitude level of 505 meters above sea level. 
+
+**Plot of the minimum SWP**
+```{R}
+ggplot(df_drakau_daily, aes(x = date, y = SWP_min))+
+  geom_line()+
+  facet_wrap(~ series_label, scales = "free_y", ncol = 3)+
+    scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  )
+```
+
+The seasonal pattern for the daily minimum SWP is similar to the pattern of the daily mean SWP. For the minimum daily SWP sites that are further away from Aare river show smaller SWP values. 
+
+## Plot SWP per site in Thormebodewald
+**Plot of the mean SWP**
+```{R}
+df_thormebodewald_daily <- df_thormebodewald_daily |> 
+  mutate(series_label = paste0(tree_name, " | ", series_height, "m"))
+
+ggplot(df_thormebodewald_daily, aes(x = date, y = SWP_mean))+
+  geom_line()+
+  facet_wrap(~ series_label, scales = "free_y", ncol = 3)+
+    scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  )
+```
+
+Note: For the Thormebodewald the measurements at P2 are missing in the SWP data set.
+
+For the measurements at P1 most significant decrease in mean soil water potential at the -0.4m level. Maybe this is specific to sites close to the Aare river and with that for sites where the groundwater table is closer to the surface. No measurements to compare with Drakau. The peak is slightly later for the -1.0m level compared to the other two, indicating a delayed response lower down in the soil profile. 
+
+The measurements of the gradient show a similar pattern as the gradient at the Drakau site. Most significant decrease in mean soil water potential for the -0.1m level and smallest decrease at -0.4m level. 
+
+**Plot of the minimum SWP**
+```{R}
+ggplot(df_thormebodewald_daily, aes(x = date, y = SWP_min))+
+  geom_line()+
+  facet_wrap(~ series_label, scales = "free_y", ncol = 3)+
+    scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  )
+```
+
+For the daily minimum SWP the values are significantly lower for the two measurements at the -0.1m/-0.4m level compared to the measurements at the -1.0m level. So the drought impacts are more pronounced in the upper levels of the soil. For the gradient G1 all the measurements were done on the same altitude. It is unclear to me what the difference is between the point measurements and the gradients. 
+
+
