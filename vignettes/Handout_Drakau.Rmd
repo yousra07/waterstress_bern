@@ -1,0 +1,176 @@
+---
+title: "Handout_Drakau"
+output: html_document
+---
+
+Libraries:
+```{R setup, message=FALSE, warning=FALSE}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(stringr)
+
+options(readr.show_col_types = FALSE)
+```
+
+Read in data:
+```{R}
+df_SWP <- read_csv("../data/drakau_data/daily_SWP_drakau.csv")
+df_TWD <- read_csv("../data/drakau_data/daily_TWD_drakau.csv")
+```
+
+## 1. Visualizations SWP from Drakau
+
+```{R}
+df_SWP_plot <- df_SWP |>
+  mutate(
+    year = year(date),
+    plot_date = as_date(paste0("2000-", month(date), "-", day(date))),
+    series_label = paste0(tree_name, " | ", series_height, "m")
+  ) |>
+  filter(year %in% c(2025, 2026))
+
+ggplot(df_SWP_plot, aes(x = plot_date, y = SWP_mean, colour = factor(year))) +
+  geom_line() +
+  facet_wrap(~ series_label, scales = "free_y", ncol = 3) +
+  scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  ) +
+  labs(
+    colour = "Year",
+    x = "Month",
+    y = "Mean SWP"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 9),
+    axis.title = element_text(size = 11),
+    strip.text = element_text(size = 9),
+    legend.position = "bottom"
+  )
+```
+
+**Seasonal dynamics of SWP in Drakau:**
+
+- Across all measurement depths, SWP became progressively more negative during summer 2025, indicating increasing soil water limitation.
+
+- The strongest declines occurred between July and September 2025, with several sensors reaching pronounced minima.
+
+- The sensors closest to the surface generally showed larger seasonal changes than the sensors deeper down in the soil. 
+
+- The site closest to the Aare (P1) shows significantly less strong negative SWP compared to the sites further away with P3 showing the largest negative SWP.
+
+- Measurements from 2026 currently cover only the beginning of the growing season (April–June). At the end of May this year a decrease in SWP is visible and it is stronger than in 2025 in the same time period.
+
+## 2. Visualizations TWD from Drakau
+### 2.1 Mean TWD per tree species
+
+```{R}
+df_TWD_species_plot <- df_TWD |>
+  mutate(
+    year = year(date),
+    plot_date = as_date(paste0("2000-", month(date), "-", day(date)))
+  ) |>
+  filter(
+    year %in% c(2025, 2026),
+    month(date) >= 4,
+    month(date) <= 10
+  ) |>
+  group_by(plot_date, year, tree_genus_species) |>
+  summarise(
+    TWD_mean = mean(TWD_mean, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1 <- ggplot(df_TWD_species_plot, aes(x = plot_date, y = TWD_mean, colour = factor(year))) +
+  geom_line() +
+  facet_wrap(~ tree_genus_species, scales = "free_y", ncol = 5) +
+  scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  ) +
+  labs(
+    x = "Month",
+    y = "Mean TWD [µm]",
+    colour = "Year"
+  )
+
+print(p1)
+```
+
+**Mean TWD by tree species:**
+
+- Both species exhibited low TWD values during spring and increasing TWD during the course of the growing season.
+
+- TWD values were generally higher and more variable during summer than during spring.
+
+- Fagus sylvatica showed a pronounced increase in TWD during late summer 2025, whereas Abies alba displayed a more gradual increase.
+
+- The available data from spring 2026 indicate TWD levels comparable to those observed during the same period in 2025 for Abies alba. For Fagus sylvatica the TWD rose significantly. This significant rise is earlier, then in 2025. Potentially indicating higher drought stress now compared to last year for this species.
+
+
+
+### 2.2 Mean TWD per site and tree species
+
+```{R}
+df_TWD_site_plot <- df_TWD |>
+  mutate(
+    year = year(date),
+    plot_date = as_date(paste0("2000-", month(date), "-", day(date))),
+    site = str_sub(tree_name, -2, -1)
+  ) |>
+  filter(
+    year %in% c(2025, 2026),
+    month(date) >= 4,
+    month(date) <= 10
+  ) |>
+  group_by(plot_date, year, site, tree_genus_species) |>
+  summarise(
+    TWD_mean = mean(TWD_mean, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p2 <- ggplot(df_TWD_site_plot, aes(x = plot_date, y = TWD_mean, colour = factor(year))) +
+  geom_line() +
+  facet_wrap(vars(tree_genus_species, site), scales = "free_y", ncol = 3) +
+  scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  ) +
+  labs(
+    x = "Month",
+    y = "Mean TWD [µm]",
+    colour = "Year"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 9),
+    axis.title = element_text(size = 11),
+    strip.text = element_text(size = 9),
+    legend.position = "bottom"
+  )
+
+print(p2)
+```
+
+**Mean TWD by site and species:**
+
+- Considerable variability in TWD dynamics was observed among sites within the same species.
+
+- The strongest TWD increase during 2025 occurred at site P1 of Fagus sylvatica, where mean TWD continuously increased throughout the growing season.
+
+- Sites G1 and P2 of Fagus sylvatica showed lower average TWD values but occasional short-term peaks.
+
+- The three Abies alba sites exhibited similar seasonal patterns, characterized by low TWD in spring and increasing TWD during summer.
+
+- If the trees are situated at a site that is further away from the Aare they show higher TWD. This coincides with more negative SWP. Stronger signal of drought conditions seem to correlate with higher TWD. 
+
+- The limited 2026 observations generally follow the same seasonal development as observed during spring 2025, except for the Fagus sylvatica at P2 that shows an exceptional peak in TWD (potentially problem with sensor).
+
+
+
+

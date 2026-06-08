@@ -37,5 +37,5 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
-data/
-data/
+data/bern_data/
+data-raw/
