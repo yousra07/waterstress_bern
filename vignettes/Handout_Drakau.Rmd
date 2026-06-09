@@ -3,72 +3,144 @@ title: "Handout_Drakau"
 output: html_document
 ---
 
-Libraries:
-```{R setup, message=FALSE, warning=FALSE}
+
+```{R setup, message=FALSE, warning=FALSE, echo = FALSE}
 library(readr)
 library(dplyr)
 library(lubridate)
 library(ggplot2)
 library(stringr)
-
+library(here)
 options(readr.show_col_types = FALSE)
+
+#Read in data:
+
+df_SWP <- read_csv(here::here("~/waterstress_bern/data/drakau_data/daily_SWP_drakau.csv"))
+df_TWD <- read_csv(here::here("~/waterstress_bern/data/drakau_data/daily_TWD_drakau.csv"))
+```
+# Introduction
+
+Topography, forest structure, and subsurface hydrology create small-scale differences in drought impacts across landscapes. Low-lying areas and depressions generally retain more soil moisture because groundwater is closer to the surface. In contrast, elevated and steep positions experience greater runoff, divergent subsurface flow, and deeper groundwater tables. These variations in water availability can lead to contrasting vegetation responses to drought along topographic gradients.
+
+## Aim
+
+The aim of this study is to understand and map vegetation water stress responses across topographic gradients using hyperspectral imaging, evaluated against ground-based measurements of tree water deficit (TWD) and sap flow.
+
+# Methodology
+
+## Site: Drakau Sector
+The polygon indicates the area covered by drone imagery (a). The line represents gradient S2G1. Point markers indicate plots S2P1, S2P2, and S2P3. The forest reserve is marked in light green. S2P1 and S2P2 are located within the reserve. S2P1: Plot at a low elevation; S2P2: plot at an intermediate elevation; and S2P3: plot at a high elevation, S2G1: Gradient.
+
+```{r drakau-map, echo=FALSE, out.width="80%", fig.align="center", fig.cap="Study area in the Drakau sector (a). Trees selected for tree water deficit and sap flow measurements are located around plots S2P1, S2P2, S2G1 (b), and S2P3 (c)"}
+knitr::include_graphics("~/waterstress_bern/figures/fig.png", rel_path = FALSE)
 ```
 
-Read in data:
-```{R}
-df_SWP <- read_csv("../data/drakau_data/daily_SWP_drakau.csv")
-df_TWD <- read_csv("../data/drakau_data/daily_TWD_drakau.csv")
-```
+### Sensors and Measurements
 
-## 1. Visualizations SWP from Drakau
+- Three beech trees, three spruce trees, and three oak trees only in S2P3. 
+- One tree of each species is used for sap-flow measurements. 
+- Tree Water Deficit (TWD) and sap flow, with one sensor per tree Soil water potential with one profile at three depths: 10, 40, and 100 cm. At S2P3, the deepest measurement is at 60 cm.
+- Air humidity and temperature, with one station per plot.
 
-```{R}
+## Results
+
+### 1. Soil Water Potential
+
+```{r swp-plot, echo=FALSE, out.width="100%", fig.align="center", fig.cap="Soil water potential measurements at different depths across the Drakau plots in 2025 and 2026"}
 df_SWP_plot <- df_SWP |>
   mutate(
     year = year(date),
-    plot_date = as_date(paste0("2000-", month(date), "-", day(date))),
-    series_label = paste0(tree_name, " | ", series_height, "m")
+    plot_date = as_date(
+      paste0("2000-", month(date), "-", day(date))
+    ),
+    series_label = paste0(
+      tree_name,
+      " | ",
+      series_height,
+      "m"
+    )
   ) |>
   filter(year %in% c(2025, 2026))
 
-ggplot(df_SWP_plot, aes(x = plot_date, y = SWP_mean, colour = factor(year))) +
-  geom_line() +
-  facet_wrap(~ series_label, scales = "free_y", ncol = 3) +
+p1 <- df_SWP_plot %>%
+  mutate(
+    series_height = factor(
+      series_height,
+      levels = c(-0.1, -0.4, -0.6, -1),
+      labels = c("-0.1", "-0.4", "-0.6", "-1.0")
+    )
+  ) %>%
+  ggplot(
+    aes(
+      x = date,
+      y = SWP_mean,
+      color = series_height
+    )
+  ) +
+  geom_point(size = 0.4) +
+  facet_wrap(
+    ~tree_name,
+    scales = "free_y",
+    ncol = 2
+  ) +
+  scale_color_manual(
+    values = c(
+      "-0.1" = "#F57C00",
+      "-0.4" = "#4682B4",
+      "-0.6" = "#2E8B57",
+      "-1.0" = "#7B1FA2"
+    ),
+    drop = FALSE
+  ) +
   scale_x_date(
     date_breaks = "1 month",
-    date_labels = "%b"
+    labels = function(x) {
+      years <- format(x, "%Y")
+      months <- format(x, "%b")
+      first_month_of_year <- !duplicated(years)
+
+      ifelse(
+        first_month_of_year,
+        paste0(months, " ", years),
+        months
+      )
+    }
   ) +
   labs(
-    colour = "Year",
-    x = "Month",
-    y = "Mean SWP"
+    x = NULL,
+    y = "Soil water potential (kPa)",
+    color = "Depth (m)"
   ) +
-  theme_bw() +
+  theme_classic(base_size = 12) +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    axis.text.y = element_text(size = 9),
-    axis.title = element_text(size = 11),
-    strip.text = element_text(size = 9),
-    legend.position = "bottom"
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      vjust = 1
+    )
   )
+
+p1
+
+
+
 ```
 
-**Seasonal dynamics of SWP in Drakau:**
+**Seasonal dynamics of soil water potential (SWP) in Drakau:**
 
-- Across all measurement depths, SWP became progressively more negative during summer 2025, indicating increasing soil water limitation.
-
-- The strongest declines occurred between July and September 2025, with several sensors reaching pronounced minima.
-
-- The sensors closest to the surface generally showed larger seasonal changes than the sensors deeper down in the soil. 
-
-- The site closest to the Aare (P1) shows significantly less strong negative SWP compared to the sites further away with P3 showing the largest negative SWP.
+- Across all measurement depths, SWP became progressively more negative during summer 2025, indicating increasing soil water limitation.  
+- The strongest declines occurred between July and September 2025, with several sensors reaching pronounced minima.  
+- Sensors closer to the surface showed larger seasonal variability compared to deeper sensors.  
+- The site closest to the Aare (S2P1) exhibited less negative SWP values, while S2P3 showed the strongest soil water limitation.  
+- Drying starts at the surface (0.1 m) and progressively propagates to deeper layers (>0.4 m). 
 
 - Measurements from 2026 currently cover only the beginning of the growing season (April–June). At the end of May this year a decrease in SWP is visible and it is stronger than in 2025 in the same time period.
 
-## 2. Visualizations TWD from Drakau
-### 2.1 Mean TWD per tree species
 
-```{R}
+### 2.1 Tree water deficit
+
+```{r p1, echo=FALSE, out.width="100%", fig.align="center", fig.cap="Tree water deficit for different species across the Drakau plots in 2025 and 2026"}
+
 df_TWD_species_plot <- df_TWD |>
   mutate(
     year = year(date),
@@ -92,11 +164,17 @@ p1 <- ggplot(df_TWD_species_plot, aes(x = plot_date, y = TWD_mean, colour = fact
     date_breaks = "1 month",
     date_labels = "%b"
   ) +
+  scale_color_manual(
+    values = c(
+      "2025" = "#F57C00",
+      "2026" = "#4682B4"
+    ))+
   labs(
-    x = "Month",
-    y = "Mean TWD [µm]",
+    x = "",
+    y = "Tree water deficit [µm]",
     colour = "Year"
-  )
+  )+
+  theme_classic(base_size = 12) 
 
 print(p1)
 ```
@@ -113,9 +191,9 @@ print(p1)
 
 
 
-### 2.2 Mean TWD per site and tree species
+### TWD across site and tree species
 
-```{R}
+```{p2, echo=FALSE, out.width="100%", fig.align="center", fig.cap="Tree water deficit across species in the Drakau plots in 2025 and 2026"}
 df_TWD_site_plot <- df_TWD |>
   mutate(
     year = year(date),
@@ -145,19 +223,29 @@ p2 <- ggplot(df_TWD_site_plot, aes(x = plot_date, y = TWD_mean, colour = factor(
     y = "Mean TWD [µm]",
     colour = "Year"
   ) +
-  theme_bw() +
+  scale_color_manual(
+    values = c(
+      "2025" = "#F57C00",
+      "2026" = "#4682B4"
+    ))+
+  labs(
+    x = "",
+    y = "Tree water deficit [µm]",
+    colour = "Year"
+  )+
+  theme_classic(base_size = 12) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     axis.text.y = element_text(size = 9),
     axis.title = element_text(size = 11),
     strip.text = element_text(size = 9),
-    legend.position = "bottom"
+    # legend.position = "bottom"
   )
 
 print(p2)
 ```
 
-**Mean TWD by site and species:**
+**Mean TWD across site and species:**
 
 - Considerable variability in TWD dynamics was observed among sites within the same species.
 
