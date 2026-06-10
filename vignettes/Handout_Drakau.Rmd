@@ -193,7 +193,8 @@ print(p1)
 
 ### TWD across site and tree species
 
-```{p2, echo=FALSE, out.width="100%", fig.align="center", fig.cap="Tree water deficit across species in the Drakau plots in 2025 and 2026"}
+```{r p2, echo=FALSE, out.width="100%", fig.align="center", fig.cap="Tree water deficit across species in the Drakau plots in 2025 and 2026"}
+
 df_TWD_site_plot <- df_TWD |>
   mutate(
     year = year(date),
@@ -238,7 +239,7 @@ p2 <- ggplot(df_TWD_site_plot, aes(x = plot_date, y = TWD_mean, colour = factor(
     axis.text.x = element_text(angle = 45, hjust = 1),
     axis.text.y = element_text(size = 9),
     axis.title = element_text(size = 11),
-    strip.text = element_text(size = 9),
+    strip.text = element_text(size = 9)
     # legend.position = "bottom"
   )
 
